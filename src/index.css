@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+/* 导入自定义字体 */
+@font-face {
+  font-family: 'Fusion Pixel';
+  src: url('/fonts/fusion-pixel-12px-monospaced-zh_hans.otf.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 设置全局默认字体 */
+body {
+  font-family: 'Fusion Pixel', monospace;
+}
