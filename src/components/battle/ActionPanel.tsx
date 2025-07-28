@@ -3,6 +3,7 @@ import type { BattlePhase } from '../../types/battle';
 import type { Item } from '../../types/item';
 import { useBattle } from '../../hooks/useBattle';
 import { useItems } from '../../hooks/useItems';
+import { useCharacter } from '../../hooks/useCharacter';
 
 interface ActionPanelProps {
   currentPhase: BattlePhase;
@@ -31,10 +32,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     decreasePreparationTimer,
     markPreparationActionTaken,
     autoExecuteBattlePhase,
-    autoProceedToNextRound
+    autoProceedToNextRound,
+    toggleFormation: toggleFormationAction
   } = useBattle();
 
   const { canUseItem } = useItems();
+  const { getPlayer } = useCharacter();
+  const player = getPlayer();
+
   const timerRef = useRef<number | null>(null);
 
   // 处理准备阶段计时器
@@ -133,6 +138,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     }
   };
 
+  // 切换作战梯队
+  const toggleFormation = () => {
+    // 这里应该发送一个动作到游戏状态来切换作战梯队
+    // 为了简化，我们只显示当前的作战梯队
+  };
+
   return (
     <div className="mb-6 p-4 bg-gray-800 rounded-lg">
       <h2 className="text-xl font-bold mb-4">操作面板</h2>
@@ -144,6 +155,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
               倒计时: {preparationTimer} 秒
             </div>
           )}
+
+          {/* 显示当前作战梯队 */}
+          <div className="text-center text-lg font-semibold">
+            作战梯队: {player.formation === 'soldiers-first' ? '士兵在前' : '玩家在前'}
+          </div>
+
           <div className="flex flex-wrap gap-4">
             {healingPotion && canUseItem(healingPotion) ? (
               <button
@@ -166,6 +183,13 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
               className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
             >
               进入战斗
+            </button>
+
+            <button
+              onClick={toggleFormationAction}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              切换作战梯队
             </button>
           </div>
         </div>

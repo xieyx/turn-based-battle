@@ -19,8 +19,14 @@ export const useBattle = () => {
     decreasePreparationTimer,
     markPreparationActionTaken,
     autoExecuteBattlePhase,
-    autoProceedToNextRound
+    autoProceedToNextRound,
+    dispatch
   } = useGame();
+
+  // 切换作战梯队
+  const toggleFormation = () => {
+    dispatch({ type: 'TOGGLE_FORMATION' });
+  };
 
   return {
     // 战斗状态
@@ -49,6 +55,9 @@ export const useBattle = () => {
 
     // 自动执行方法
     autoExecuteBattlePhase,
-    autoProceedToNextRound
+    autoProceedToNextRound,
+
+    // 作战梯队相关方法
+    toggleFormation
   };
 };

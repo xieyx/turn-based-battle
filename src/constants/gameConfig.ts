@@ -1,4 +1,4 @@
-import type { Character } from '../types/character';
+import type { Character, Soldier } from '../types/character';
 import type { Item } from '../types/item';
 
 // 默认角色属性配置
@@ -7,7 +7,8 @@ export const DEFAULT_PLAYER_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
   maxHp: 100,
   attack: 20,
   defense: 5,
-  type: 'player'
+  type: 'player',
+  formation: 'player-first' // 默认玩家在前
 };
 
 export const DEFAULT_ENEMY_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
@@ -15,7 +16,18 @@ export const DEFAULT_ENEMY_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
   maxHp: 80,
   attack: 15,
   defense: 3,
-  type: 'enemy'
+  type: 'enemy',
+  formation: 'soldiers-first' // 默认士兵在前
+};
+
+// 默认士兵配置
+export const DEFAULT_SOLDIER_CONFIG: Omit<Soldier, 'id' | 'currentHp'> = {
+  name: '剑士',
+  maxHp: 30,
+  attack: 10,
+  defense: 2,
+  quantity: 3,
+  maxQuantity: 5
 };
 
 // 默认道具配置

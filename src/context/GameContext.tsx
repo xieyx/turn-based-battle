@@ -17,7 +17,8 @@ import {
   decreasePreparationTimer,
   markPreparationActionTaken,
   autoExecuteBattlePhase,
-  autoProceedToNextRound
+  autoProceedToNextRound,
+  toggleFormation
 } from '../utils/battleLogic';
 import {
   createCharacter,
@@ -53,7 +54,8 @@ type GameAction =
   | { type: 'DECREASE_PREPARATION_TIMER' }
   | { type: 'MARK_PREPARATION_ACTION_TAKEN' }
   | { type: 'AUTO_EXECUTE_BATTLE_PHASE' }
-  | { type: 'AUTO_PROCEED_TO_NEXT_ROUND' };
+  | { type: 'AUTO_PROCEED_TO_NEXT_ROUND' }
+  | { type: 'TOGGLE_FORMATION' };
 
 // Reducer函数
 const gameReducer = (state: BattleState, action: GameAction): BattleState => {
@@ -85,6 +87,8 @@ const gameReducer = (state: BattleState, action: GameAction): BattleState => {
       return autoExecuteBattlePhase(state);
     case 'AUTO_PROCEED_TO_NEXT_ROUND':
       return autoProceedToNextRound(state);
+    case 'TOGGLE_FORMATION':
+      return toggleFormation(state);
     default:
       return state;
   }
@@ -107,6 +111,7 @@ interface GameContextType {
   markPreparationActionTaken: () => void;
   autoExecuteBattlePhase: () => void;
   autoProceedToNextRound: () => void;
+  toggleFormation: () => void;
 }
 
 // 创建Context
@@ -169,6 +174,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'AUTO_PROCEED_TO_NEXT_ROUND' });
   };
 
+  const toggleFormation = () => {
+    dispatch({ type: 'TOGGLE_FORMATION' });
+  };
+
   const value = {
     state,
     dispatch,
@@ -184,7 +193,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     decreasePreparationTimer,
     markPreparationActionTaken,
     autoExecuteBattlePhase,
-    autoProceedToNextRound
+    autoProceedToNextRound,
+    toggleFormation
   };
 
   return (

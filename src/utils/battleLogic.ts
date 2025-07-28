@@ -1,10 +1,10 @@
 import type { BattleState, BattlePhase, BattleAction } from '../types/battle';
-import type { Character } from '../types/character';
+import type { Character, Soldier } from '../types/character';
 import type { Item } from '../types/item';
 import { GameError, GameErrorType } from '../types/game';
-import { calculateDamage, applyDamage } from './damageCalculation';
+import { calculateDamage, calculateSoldierDamage, applyDamage, applySoldierDamage } from './damageCalculation';
 import { useHealingPotion, canUseItem } from './items';
-import { isCharacterAlive, updateCharacterHp } from './character';
+import { isCharacterAlive, isSoldierAlive, updateCharacterHp, updateSoldierHp, isCharacterOrSoldiersAlive } from './character';
 
 /**
  * 初始化战斗
@@ -111,31 +111,127 @@ export function startResolutionPhase(state: BattleState): BattleState {
     const defender =
       action.targetId === state.player.id ? state.player : state.enemy;
 
-    if (isCharacterAlive(attacker) && isCharacterAlive(defender)) {
-      const damage = calculateDamage(attacker, defender);
-      const updatedDefender = applyDamage(defender, damage);
+    if (isCharacterAlive(attacker)) {
+      // 检查防御者是否有士兵在前
+      const defenderHasSoldiersFirst =
+        (defender.id === state.player.id && defender.formation === 'soldiers-first' && defender.soldiers && defender.soldiers.length > 0) ||
+        (defender.id === state.enemy.id && defender.formation === 'soldiers-first' && defender.soldiers && defender.soldiers.length > 0);
 
-      // 更新角色状态
-      if (updatedDefender.id === newState.player.id) {
-        newState.player = updatedDefender;
-      } else {
-        newState.enemy = updatedDefender;
+      // 检查是否还有存活的士兵
+      let hasAliveSoldiers = false;
+      if (defenderHasSoldiersFirst) {
+        const defenderSoldiers = defender.id === state.player.id ? newState.player.soldiers : newState.enemy.soldiers;
+        if (defenderSoldiers && defenderSoldiers.length > 0) {
+          hasAliveSoldiers = defenderSoldiers.some(soldier => isSoldierAlive(soldier));
+        }
       }
 
-      newLog = [
-        ...newLog,
-        {
-          phase: 'resolution',
-          message: `${attacker.name} 对 ${defender.name} 造成了 ${damage} 点伤害`,
-          round: state.currentRound
+      if (defenderHasSoldiersFirst && hasAliveSoldiers) {
+        // 如果防御者有士兵在前且还有存活的士兵，攻击士兵
+        const defenderSoldiers = defender.id === state.player.id ? newState.player.soldiers : newState.enemy.soldiers;
+        if (defenderSoldiers && defenderSoldiers.length > 0) {
+          // 找到第一个存活的士兵
+          const soldier = defenderSoldiers.find(s => isSoldierAlive(s));
+          if (soldier) {
+            const damage = calculateSoldierDamage(attacker, soldier);
+            const updatedSoldier = applySoldierDamage(soldier, damage);
+
+            // 计算实际减少的士兵数量
+            const soldiersLost = soldier.quantity - updatedSoldier.quantity;
+
+            // 更新士兵状态
+            if (defender.id === newState.player.id) {
+              if (newState.player.soldiers) {
+                const soldierIndex = newState.player.soldiers.findIndex(s => s.id === soldier.id);
+                if (soldierIndex !== -1) {
+                  newState.player.soldiers[soldierIndex] = updatedSoldier;
+                }
+              }
+            } else {
+              if (newState.enemy.soldiers) {
+                const soldierIndex = newState.enemy.soldiers.findIndex(s => s.id === soldier.id);
+                if (soldierIndex !== -1) {
+                  newState.enemy.soldiers[soldierIndex] = updatedSoldier;
+                }
+              }
+            }
+
+            // 记录士兵承受的伤害
+            if (soldiersLost > 0) {
+              newLog = [
+                ...newLog,
+                {
+                  phase: 'resolution',
+                  message: `${attacker.name} 对 ${defender.name} 的 ${soldier.name} 造成了 ${damage} 点伤害，损失了 ${soldiersLost} 名士兵`,
+                  round: state.currentRound
+                }
+              ];
+            } else {
+              newLog = [
+                ...newLog,
+                {
+                  phase: 'resolution',
+                  message: `${attacker.name} 对 ${defender.name} 的 ${soldier.name} 造成了 ${damage} 点伤害`,
+                  round: state.currentRound
+                }
+              ];
+            }
+
+            // 如果士兵死亡，穿透伤害到角色本身
+            if (updatedSoldier.currentHp <= 0 && updatedSoldier.quantity <= 0) {
+              // 计算穿透到角色的伤害
+              // 穿透伤害 = 原始伤害 - 士兵当前生命值（这是士兵死亡前能吸收的伤害）
+              const damageAbsorbedBySoldier = soldier.currentHp; // 士兵死亡前的生命值就是它能吸收的伤害
+              const remainingDamage = damage - damageAbsorbedBySoldier;
+              if (remainingDamage > 0 && isCharacterAlive(defender)) {
+                const updatedDefender = applyDamage(defender, remainingDamage);
+
+                // 更新角色状态
+                if (updatedDefender.id === newState.player.id) {
+                  newState.player = updatedDefender;
+                } else {
+                  newState.enemy = updatedDefender;
+                }
+
+                newLog = [
+                  ...newLog,
+                  {
+                    phase: 'resolution',
+                    message: `${attacker.name} 的攻击穿透了 ${soldier.name}，对 ${defender.name} 造成了 ${remainingDamage} 点伤害`,
+                    round: state.currentRound
+                  }
+                ];
+              }
+            }
+          }
         }
-      ];
+      } else if (isCharacterAlive(defender)) {
+        // 如果没有士兵在前或者士兵都已死亡，攻击角色本身
+        const damage = calculateDamage(attacker, defender);
+        const updatedDefender = applyDamage(defender, damage);
+
+        // 更新角色状态
+        if (updatedDefender.id === newState.player.id) {
+          newState.player = updatedDefender;
+        } else {
+          newState.enemy = updatedDefender;
+        }
+
+        newLog = [
+          ...newLog,
+          {
+            phase: 'resolution',
+            message: `${attacker.name} 对 ${defender.name} 造成了 ${damage} 点伤害`,
+            round: state.currentRound
+          }
+        ];
+      }
     }
   }
 
   // 检查战斗是否结束
-  const isPlayerAlive = isCharacterAlive(newState.player);
-  const isEnemyAlive = isCharacterAlive(newState.enemy);
+  const isPlayerAlive = isCharacterOrSoldiersAlive(newState.player);
+  const isEnemyAlive = isCharacterOrSoldiersAlive(newState.enemy);
 
   let isGameOver = false;
   let winner: 'player' | 'enemy' | undefined;
@@ -288,7 +384,7 @@ export function executePendingItemUse(state: BattleState): BattleState {
   }
 
   const itemId = state.pendingItemUse.itemId;
-  const targetId = state.pendingItemUse.targetId;
+  let targetId = state.pendingItemUse.targetId;
 
   const itemIndex = state.playerItems.findIndex(item => item.id === itemId);
 
@@ -308,6 +404,68 @@ export function executePendingItemUse(state: BattleState): BattleState {
     );
   }
 
+  // 根据作战梯队确定道具作用对象
+  if (state.player.formation === 'soldiers-first' && state.player.soldiers && state.player.soldiers.length > 0) {
+    // 如果玩家士兵在前，道具作用到士兵上
+    // 简化处理：作用到第一个士兵
+    const firstSoldier = state.player.soldiers[0];
+    if (isSoldierAlive(firstSoldier)) {
+      // 创建一个临时角色对象来使用道具
+      const soldierAsCharacter: Character = {
+        id: firstSoldier.id,
+        name: firstSoldier.name,
+        maxHp: firstSoldier.maxHp,
+        currentHp: firstSoldier.currentHp,
+        attack: firstSoldier.attack,
+        defense: firstSoldier.defense,
+        type: 'player'
+      };
+
+      const result = useHealingPotion(item, soldierAsCharacter);
+
+      if (!result) {
+        throw new GameError(
+          GameErrorType.INVALID_ACTION,
+          '无法使用该道具'
+        );
+      }
+
+      const [updatedItem, updatedSoldierAsCharacter] = result;
+      const updatedItems = [...state.playerItems];
+      updatedItems[itemIndex] = updatedItem;
+
+      // 更新士兵状态
+      const updatedSoldier: Soldier = {
+        ...firstSoldier,
+        currentHp: updatedSoldierAsCharacter.currentHp
+      };
+
+      let newLog = [...state.battleLog];
+      let updatedPlayer = { ...state.player };
+      if (updatedPlayer.soldiers) {
+        updatedPlayer.soldiers[0] = updatedSoldier;
+      }
+
+      newLog = [
+        ...newLog,
+        {
+          phase: 'battle',
+          message: `玩家使用了 ${item.name}，恢复了士兵 ${updatedSoldier.name} 的生命值`,
+          round: state.currentRound
+        }
+      ];
+
+      return {
+        ...state,
+        player: updatedPlayer,
+        playerItems: updatedItems,
+        pendingItemUse: undefined, // 清除待处理的道具使用
+        battleLog: newLog
+      };
+    }
+  }
+
+  // 否则道具作用到玩家角色上
   const target =
     targetId === state.player.id ? state.player :
     targetId === state.enemy.id ? state.enemy :
@@ -348,7 +506,7 @@ export function executePendingItemUse(state: BattleState): BattleState {
     ...newLog,
     {
       phase: 'battle',
-      message: `玩家使用了 ${item.name}，恢复了 ${item.effect.heal} 点生命值`,
+      message: `玩家使用了 ${item.name}，恢复了生命值`,
       round: state.currentRound
     }
   ];
@@ -698,6 +856,36 @@ export function autoProceedToNextRound(state: BattleState): BattleState {
     currentPhase: 'preparation',
     preparationTimer: 30, // 重置计时器
     preparationActionTaken: false // 重置行动标记
+  };
+}
+
+/**
+ * 切换作战梯队
+ * @param state 战斗状态
+ * @returns 更新后的战斗状态
+ */
+export function toggleFormation(state: BattleState): BattleState {
+  if (state.isGameOver) {
+    throw new GameError(
+      GameErrorType.BATTLE_ALREADY_ENDED,
+      '战斗已经结束'
+    );
+  }
+
+  const updatedPlayer = { ...state.player };
+  updatedPlayer.formation = updatedPlayer.formation === 'soldiers-first' ? 'player-first' : 'soldiers-first';
+
+  return {
+    ...state,
+    player: updatedPlayer,
+    battleLog: [
+      ...state.battleLog,
+      {
+        phase: 'preparation',
+        message: `切换作战梯队为: ${updatedPlayer.formation === 'soldiers-first' ? '士兵在前' : '玩家在前'}`,
+        round: state.currentRound
+      }
+    ]
   };
 }
 

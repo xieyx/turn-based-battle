@@ -1,8 +1,13 @@
 export {
   createCharacter,
+  createSoldier,
   updateCharacterHp,
+  updateSoldierHp,
   isCharacterAlive,
-  healCharacter
+  isSoldierAlive,
+  healCharacter,
+  healSoldier,
+  isCharacterOrSoldiersAlive
 } from './character';
 
 export {
@@ -27,5 +32,6 @@ export {
   enterBattle,
   attack,
   processEnemyTurn,
-  resetBattle
+  resetBattle,
+  toggleFormation
 } from './battleLogic';
