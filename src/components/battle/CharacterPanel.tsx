@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Character } from '../../types/character';
+import type { Character, Soldier } from '../../types/character';
 import { useCharacter } from '../../hooks/useCharacter';
 
 interface CharacterPanelProps {
@@ -24,6 +24,19 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({
   const getHpBarColor = () => {
     if (hpPercentage > 60) return 'bg-green-500';
     if (hpPercentage > 30) return 'bg-yellow-500';
+    return 'bg-red-500';
+  };
+
+  // 获取士兵生命值百分比
+  const getSoldierHpPercentage = (soldier: Soldier) => {
+    return (soldier.currentHp / soldier.maxHp) * 100;
+  };
+
+  // 士兵生命值条颜色根据百分比变化
+  const getSoldierHpBarColor = (soldier: Soldier) => {
+    const percentage = getSoldierHpPercentage(soldier);
+    if (percentage > 60) return 'bg-green-500';
+    if (percentage > 30) return 'bg-yellow-500';
     return 'bg-red-500';
   };
 
@@ -60,6 +73,31 @@ export const CharacterPanel: React.FC<CharacterPanelProps> = ({
             <div className="text-lg font-bold">{character.defense}</div>
           </div>
         </div>
+
+        {/* 显示士兵信息 */}
+        {character.soldiers && character.soldiers.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-lg font-bold mb-2">士兵</h3>
+            <div className="space-y-2">
+              {character.soldiers.map((soldier) => (
+                <div key={soldier.id} className="bg-gray-800 p-2 rounded">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-medium">{soldier.name}</span>
+                    <span className="text-sm">
+                      {soldier.quantity} 个 (HP: {soldier.currentHp}/{soldier.maxHp})
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${getSoldierHpBarColor(soldier)}`}
+                      style={{ width: `${getSoldierHpPercentage(soldier)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
