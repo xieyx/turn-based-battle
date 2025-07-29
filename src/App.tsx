@@ -1,4 +1,3 @@
-import React from 'react';
 import { GameProvider } from './context/GameContext';
 import { BattleScreen } from './components/battle/BattleScreen';
 

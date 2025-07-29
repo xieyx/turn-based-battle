@@ -57,24 +57,30 @@ export function applySoldierDamage(
   soldier: Soldier,
   damage: number
 ): Soldier {
-  let newHp = Math.max(0, soldier.currentHp - damage);
-  let newQuantity = soldier.quantity;
+  // 创建士兵副本以避免直接修改原士兵对象
+  let updatedSoldier = { ...soldier };
+  let remainingDamage = damage;
 
-  // 如果血量降到0或以下，减少士兵数量
-  if (newHp <= 0) {
-    // 计算需要减少的士兵数量
-    const hpDeficit = damage - soldier.currentHp; // 超出当前士兵生命值的伤害
-    const soldiersToRemove = Math.ceil(hpDeficit / soldier.maxHp) + 1; // 至少减少1个士兵
-    newQuantity = Math.max(0, soldier.quantity - soldiersToRemove);
-    // 重置剩余士兵的血量为满血
-    if (newQuantity > 0) {
-      newHp = soldier.maxHp;
+  // 循环处理伤害，直到伤害处理完或士兵全部死亡
+  while (remainingDamage > 0 && updatedSoldier.quantity > 0) {
+    // 如果当前士兵血量足够承受伤害
+    if (updatedSoldier.currentHp > remainingDamage) {
+      updatedSoldier.currentHp -= remainingDamage;
+      remainingDamage = 0;
+    } else {
+      // 当前士兵死亡，伤害继续传递
+      remainingDamage -= updatedSoldier.currentHp;
+      updatedSoldier.quantity -= 1;
+
+      // 如果还有剩余士兵，重置下一个士兵的血量
+      if (updatedSoldier.quantity > 0) {
+        updatedSoldier.currentHp = updatedSoldier.maxHp;
+      } else {
+        // 所有士兵都死亡
+        updatedSoldier.currentHp = 0;
+      }
     }
   }
 
-  return {
-    ...soldier,
-    currentHp: newHp,
-    quantity: newQuantity
-  };
+  return updatedSoldier;
 }
