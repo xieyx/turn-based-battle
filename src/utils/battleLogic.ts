@@ -269,29 +269,6 @@ function processAttack(
           });
         }
 
-        // 如果士兵死亡，穿透伤害到角色本身
-        if (updatedSoldier.currentHp <= 0 && updatedSoldier.quantity <= 0) {
-          // 计算穿透到角色的伤害
-          // 穿透伤害 = 原始伤害 - 士兵当前生命值（这是士兵死亡前能吸收的伤害）
-          const damageAbsorbedBySoldier = soldier.currentHp; // 士兵死亡前的生命值就是它能吸收的伤害
-          const remainingDamage = damage - damageAbsorbedBySoldier;
-          if (remainingDamage > 0 && isCharacterAlive(defender)) {
-            const updatedDefender = applyDamage(defender, remainingDamage);
-
-            // 更新角色状态
-            if (updatedDefender.id === newState.player.id) {
-              newState.player = updatedDefender;
-            } else {
-              newState.enemy = updatedDefender;
-            }
-
-            newLog.push({
-              phase: 'resolution',
-              message: `${actualAttackerName} 的攻击穿透了 ${soldier.name}，对 ${defender.name} 造成了 ${remainingDamage} 点伤害`,
-              round: round
-            });
-          }
-        }
       }
     }
   } else if (isCharacterAlive(defender)) {
@@ -872,6 +849,17 @@ export function autoExecuteBattlePhase(state: BattleState): BattleState {
             round: state.currentRound
           }
         ];
+
+        // 添加士兵攻击到待处理行动中
+        const soldierPendingActions: BattleAction[] = [
+          ...newState.pendingActions,
+          {
+            attackerId: firstSoldier.id,
+            targetId: state.enemy.id
+          }
+        ];
+
+        newState.pendingActions = soldierPendingActions;
       }
     }
   }
@@ -910,6 +898,17 @@ export function autoExecuteBattlePhase(state: BattleState): BattleState {
           round: state.currentRound
         }
       ];
+
+      // 添加士兵攻击到待处理行动中
+      const soldierPendingActions: BattleAction[] = [
+        ...newState.pendingActions,
+        {
+          attackerId: firstSoldier.id,
+          targetId: state.player.id
+        }
+      ];
+
+      newState.pendingActions = soldierPendingActions;
     }
   }
 
