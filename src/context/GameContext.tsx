@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
 import type { BattleState } from '../types/battle';
-import type { Character } from '../types/character';
-import type { Item } from '../types/item';
 import {
   initializeBattle,
   startPreparationPhase,
@@ -9,7 +7,6 @@ import {
   startResolutionPhase,
   nextRound,
   selectItem as selectItemLogic,
-  executePendingItemUse,
   enterBattle as enterBattleLogic,
   attack as attackLogic,
   processEnemyTurn,
@@ -21,8 +18,7 @@ import {
   toggleFormation
 } from '../utils/battleLogic';
 import {
-  createCharacter,
-  isCharacterAlive
+  createCharacter
 } from '../utils/character';
 import { initializePlayerItems } from '../utils/items';
 import {

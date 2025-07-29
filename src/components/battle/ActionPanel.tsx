@@ -24,10 +24,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     battleState,
     selectItem,
     enterBattle,
-    attack,
     startBattlePhase,
     startResolutionPhase,
-    nextRound,
     processEnemyTurn,
     decreasePreparationTimer,
     markPreparationActionTaken,
@@ -40,7 +38,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   const { getPlayer } = useCharacter();
   const player = getPlayer();
 
-  const timerRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 处理准备阶段计时器
   useEffect(() => {
@@ -126,23 +124,6 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   };
 
   // 处理攻击
-  const handleAttack = () => {
-    // 在这个简单的实现中，我们假设只有一个敌人
-    attack('enemy');
-  };
-
-  // 处理下一阶段
-  const handleNextPhase = () => {
-    if (currentPhase === 'resolution') {
-      nextRound();
-    }
-  };
-
-  // 切换作战梯队
-  const toggleFormation = () => {
-    // 这里应该发送一个动作到游戏状态来切换作战梯队
-    // 为了简化，我们只显示当前的作战梯队
-  };
 
   return (
     <div className="mb-6 p-4 bg-gray-800 rounded-lg">
