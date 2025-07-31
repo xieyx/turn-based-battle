@@ -14,6 +14,17 @@ export interface BattleLogEntry {
   round: number;
 }
 
+export interface DamageRecord {
+  attackerId: string;
+  attackerName: string;
+  targetId: string;
+  targetName: string;
+  damage: number;
+  targetType: 'character' | 'soldier';
+  soldierId?: string;
+  soldierName?: string;
+}
+
 export interface BattleState {
   currentRound: number;
   currentPhase: BattlePhase;
@@ -30,4 +41,5 @@ export interface BattleState {
     itemId: string;
     targetId: string;
   }; // 准备阶段选择使用的道具
+  calculatedDamages: DamageRecord[]; // 战斗阶段计算的伤害记录，结算阶段应用
 }

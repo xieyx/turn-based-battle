@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDamage, calculateSoldierDamage, applyDamage, applySoldierDamage } from './damageCalculation';
+import { calculateDamage, applyDamage, applySoldierDamage } from './damageCalculation';
 import { DEFAULT_PLAYER_CONFIG, DEFAULT_ENEMY_CONFIG, DEFAULT_SOLDIER_CONFIG } from '../constants/gameConfig';
 import { createCharacter, createSoldier } from './character';
 
@@ -27,24 +27,6 @@ describe('damageCalculation', () => {
 
       const damage = calculateDamage(attacker, defender);
       expect(damage).toBe(1); // max(10 - 10, 1) = 1
-    });
-  });
-
-  describe('calculateSoldierDamage', () => {
-    it('should calculate soldier damage correctly', () => {
-      const attacker = createCharacter({ ...DEFAULT_PLAYER_CONFIG, attack: 20 }, 'player-1');
-      const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, defense: 5 }, 'soldier-1');
-
-      const damage = calculateSoldierDamage(attacker, soldier);
-      expect(damage).toBe(15); // 20 - 5 = 15
-    });
-
-    it('should return minimum damage of 1 when soldier defense is higher', () => {
-      const attacker = createCharacter({ ...DEFAULT_PLAYER_CONFIG, attack: 5 }, 'player-1');
-      const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, defense: 10 }, 'soldier-1');
-
-      const damage = calculateSoldierDamage(attacker, soldier);
-      expect(damage).toBe(1); // max(5 - 10, 1) = 1
     });
   });
 
