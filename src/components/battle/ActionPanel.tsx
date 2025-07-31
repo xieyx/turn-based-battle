@@ -86,41 +86,17 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     markPreparationActionTaken();
     // 在真实游戏中，这里可能需要一些延迟或动画
     // 但为了简化，我们直接进入战斗阶段
-    setTimeout(() => {
+    // setTimeout(() => {
       startBattlePhase();
-      // 自动执行战斗阶段
-      setTimeout(() => {
-        autoExecuteBattlePhase();
-        // 处理敌人回合
-        setTimeout(() => {
-          processEnemyTurn();
-          // 进入结算阶段
-          setTimeout(() => {
-            startResolutionPhase();
-          }, 500);
-        }, 500);
-      }, 500);
-    }, 500);
+    // }, 500);
   };
 
   // 自动进入战斗
   const handleAutoEnterBattle = () => {
     // 自动进入战斗阶段
-    setTimeout(() => {
+    // setTimeout(() => {
       startBattlePhase();
-      // 自动执行战斗阶段
-      setTimeout(() => {
-        autoExecuteBattlePhase();
-        // 处理敌人回合
-        setTimeout(() => {
-          processEnemyTurn();
-          // 进入结算阶段
-          setTimeout(() => {
-            startResolutionPhase();
-          }, 500);
-        }, 500);
-      }, 500);
-    }, 500);
+    // }, 500);
   };
 
   // 处理攻击
@@ -159,12 +135,12 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
               </button>
             )}
 
-            <button
-              onClick={handleEnterBattle}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-            >
-              进入战斗
-            </button>
+          <button
+            onClick={handleEnterBattle}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          >
+            进入战斗
+          </button>
 
             <button
               onClick={toggleFormationAction}

@@ -18,7 +18,8 @@ export {
 
 export {
   calculateDamage,
-  applyDamage
+  applyDamage,
+  calculateBattleDamages
 } from './damageCalculation';
 
 export {
@@ -33,5 +34,7 @@ export {
   attack,
   processEnemyTurn,
   resetBattle,
-  toggleFormation
+  toggleFormation,
+  autoExecuteBattlePhase,
+  autoProceedToNextRound
 } from './battleLogic';
