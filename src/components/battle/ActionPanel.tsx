@@ -84,22 +84,13 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
   const handleEnterBattle = () => {
     enterBattle();
     markPreparationActionTaken();
-    // 在真实游戏中，这里可能需要一些延迟或动画
-    // 但为了简化，我们直接进入战斗阶段
-    // setTimeout(() => {
-      startBattlePhase();
-    // }, 500);
+    startBattlePhase();
   };
 
   // 自动进入战斗
   const handleAutoEnterBattle = () => {
-    // 自动进入战斗阶段
-    // setTimeout(() => {
-      startBattlePhase();
-    // }, 500);
+    startBattlePhase();
   };
-
-  // 处理攻击
 
   return (
     <div className="mb-6 p-4 bg-gray-800 rounded-lg">

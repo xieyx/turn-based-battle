@@ -105,14 +105,7 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
           soldierName: firstSoldier.name
         });
 
-        // 计算士兵承受伤害后的剩余伤害
-        // const remainingDamage = calculateRemainingDamageAfterSoldier(firstSoldier, playerDamage);
 
-        // 如果士兵会死亡，更新临时士兵状态
-        // if (remainingDamage > 0) {
-        //   const updatedSoldier = applySoldierDamage(firstSoldier, playerDamage);
-        //   tempEnemySoldiers[0] = updatedSoldier;
-        // }
       } else {
         // 士兵已死亡，攻击敌人角色
         damageRecords.push({
@@ -159,14 +152,7 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
               soldierName: firstSoldier.name
             });
 
-            // 计算士兵承受伤害后的剩余伤害
-            // const remainingDamage = calculateRemainingDamageAfterSoldier(firstSoldier, soldierDamage);
 
-            // 如果士兵会死亡，更新临时士兵状态
-            // if (remainingDamage > 0) {
-            //   const updatedSoldier = applySoldierDamage(firstSoldier, soldierDamage);
-            //   tempEnemySoldiers[0] = updatedSoldier;
-            // }
           } else {
             // 士兵已死亡，攻击敌人角色
             damageRecords.push({
@@ -215,14 +201,7 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
           soldierName: firstSoldier.name
         });
 
-        // 计算士兵承受伤害后的剩余伤害
-        // const remainingDamage = calculateRemainingDamageAfterSoldier(firstSoldier, enemyDamage);
 
-        // 如果士兵会死亡，更新临时士兵状态
-        // if (remainingDamage > 0) {
-        //  const updatedSoldier = applySoldierDamage(firstSoldier, enemyDamage);
-        //  tempPlayerSoldiers[0] = updatedSoldier;
-        // }
       } else {
         // 士兵已死亡，攻击玩家角色
         damageRecords.push({
@@ -269,14 +248,7 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
               soldierName: firstSoldier.name
             });
 
-            // 计算士兵承受伤害后的剩余伤害
-            //const remainingDamage = calculateRemainingDamageAfterSoldier(firstSoldier, soldierDamage);
 
-            // 如果士兵会死亡，更新临时士兵状态
-            //if (remainingDamage > 0) {
-            //  const updatedSoldier = applySoldierDamage(firstSoldier, soldierDamage);
-            //  tempPlayerSoldiers[0] = updatedSoldier;
-            //}
           } else {
             // 士兵已死亡，攻击玩家角色
             damageRecords.push({

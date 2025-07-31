@@ -146,7 +146,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'ATTACK', payload: targetId });
   };
 
-  const processEnemyAction = () => {
+  const processEnemyTurn = () => {
     dispatch({ type: 'PROCESS_ENEMY_TURN' });
   };
 
@@ -184,7 +184,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useItem,
     enterBattle,
     attack,
-    processEnemyTurn: processEnemyAction,
+    processEnemyTurn,
     resetBattle,
     decreasePreparationTimer,
     markPreparationActionTaken,

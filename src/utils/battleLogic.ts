@@ -1,4 +1,4 @@
-import type { BattleState, BattleAction } from '../types/battle';
+import type { BattleState, BattleAction, DamageRecord, BattleLogEntry } from '../types/battle';
 import type { Character, Soldier } from '../types/character';
 import type { Item } from '../types/item';
 import { GameError, GameErrorType } from '../types/game';
@@ -94,6 +94,81 @@ export function startBattlePhase(state: BattleState): BattleState {
 }
 
 /**
+ * 应用伤害到目标
+ * @param target 目标角色或士兵
+ * @param damage 伤害值
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageToTarget(
+  target: Character,
+  damage: number,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  const updatedTarget = applyDamage(target, damage);
+  const newLogEntry = {
+    phase: 'resolution' as const,
+    message: `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}造成了 ${damageRecord.damage} 点伤害`,
+    round: state.currentRound
+  };
+  return {
+    updatedTarget,
+    newLog: [...newLog, newLogEntry]
+  };
+}
+
+/**
+ * 应用伤害到士兵目标
+ * @param target 目标角色
+ * @param soldierId 士兵ID
+ * @param damage 伤害值
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageToSoldierTarget(
+  target: Character,
+  soldierId: string,
+  damage: number,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  if (!target.soldiers) {
+    return { updatedTarget: target, newLog };
+  }
+
+  const soldierIndex = target.soldiers.findIndex(s => s.id === soldierId);
+  if (soldierIndex === -1) {
+    return { updatedTarget: target, newLog };
+  }
+
+  const updatedSoldier = applySoldierDamage(target.soldiers[soldierIndex], damage);
+  const updatedTarget = {
+    ...target,
+    soldiers: target.soldiers.map((s, index) =>
+      index === soldierIndex ? updatedSoldier : s
+    )
+  };
+
+  const newLogEntry = {
+    phase: 'resolution' as const,
+    message: `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`,
+    round: state.currentRound
+  };
+
+  return {
+    updatedTarget,
+    newLog: [...newLog, newLogEntry]
+  };
+}
+
+/**
  * 开始结算阶段
  * @param state 战斗状态
  * @returns 更新后的战斗状态
@@ -127,58 +202,24 @@ export function startResolutionPhase(state: BattleState): BattleState {
     if (damageRecord.targetType === 'character') {
       // 对角色造成伤害
       if (damageRecord.targetId === newState.player.id) {
-        const updatedPlayer = applyDamage(playerCopy, damageRecord.damage);
-        playerCopy = updatedPlayer;
-        newLog = [
-          ...newLog,
-          {
-            phase: 'resolution',
-            message: `${damageRecord.attackerName} 对玩家造成了 ${damageRecord.damage} 点伤害`,
-            round: state.currentRound
-          }
-        ];
+        const result = applyDamageToTarget(playerCopy, damageRecord.damage, damageRecord, newLog, state);
+        playerCopy = result.updatedTarget;
+        newLog = result.newLog;
       } else if (damageRecord.targetId === newState.enemy.id) {
-        const updatedEnemy = applyDamage(enemyCopy, damageRecord.damage);
-        enemyCopy = updatedEnemy;
-        newLog = [
-          ...newLog,
-          {
-            phase: 'resolution',
-            message: `${damageRecord.attackerName} 对敌人造成了 ${damageRecord.damage} 点伤害`,
-            round: state.currentRound
-          }
-        ];
+        const result = applyDamageToTarget(enemyCopy, damageRecord.damage, damageRecord, newLog, state);
+        enemyCopy = result.updatedTarget;
+        newLog = result.newLog;
       }
     } else if (damageRecord.targetType === 'soldier' && damageRecord.soldierId) {
       // 对士兵造成伤害
-      if (damageRecord.targetId === newState.player.id && playerCopy.soldiers) {
-        const soldierIndex = playerCopy.soldiers.findIndex(s => s.id === damageRecord.soldierId);
-        if (soldierIndex !== -1) {
-          const updatedSoldier = applySoldierDamage(playerCopy.soldiers[soldierIndex], damageRecord.damage);
-          playerCopy.soldiers[soldierIndex] = updatedSoldier;
-          newLog = [
-            ...newLog,
-            {
-              phase: 'resolution',
-              message: `${damageRecord.attackerName} 对玩家的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`,
-              round: state.currentRound
-            }
-          ];
-        }
-      } else if (damageRecord.targetId === newState.enemy.id && enemyCopy.soldiers) {
-        const soldierIndex = enemyCopy.soldiers.findIndex(s => s.id === damageRecord.soldierId);
-        if (soldierIndex !== -1) {
-          const updatedSoldier = applySoldierDamage(enemyCopy.soldiers[soldierIndex], damageRecord.damage);
-          enemyCopy.soldiers[soldierIndex] = updatedSoldier;
-          newLog = [
-            ...newLog,
-            {
-              phase: 'resolution',
-              message: `${damageRecord.attackerName} 对敌人的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`,
-              round: state.currentRound
-            }
-          ];
-        }
+      if (damageRecord.targetId === newState.player.id) {
+        const result = applyDamageToSoldierTarget(playerCopy, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
+        playerCopy = result.updatedTarget;
+        newLog = result.newLog;
+      } else if (damageRecord.targetId === newState.enemy.id) {
+        const result = applyDamageToSoldierTarget(enemyCopy, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
+        enemyCopy = result.updatedTarget;
+        newLog = result.newLog;
       }
     }
   }
