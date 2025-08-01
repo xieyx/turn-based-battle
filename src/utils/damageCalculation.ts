@@ -80,8 +80,8 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
   const damageRecords: DamageRecord[] = [];
 
   // 创建临时的士兵状态来跟踪在战斗过程中士兵的死亡情况
-  const tempPlayerSoldiers = state.player.soldiers ? [...state.player.soldiers] : [];
-  const tempEnemySoldiers = state.enemy.soldiers ? [...state.enemy.soldiers] : [];
+  let tempPlayerSoldiers = state.player.soldiers ? [...state.player.soldiers] : [];
+  let tempEnemySoldiers = state.enemy.soldiers ? [...state.enemy.soldiers] : [];
 
   // 玩家攻击敌人（玩家角色和玩家士兵都能攻击）
   if (isCharacterAlive(state.player)) {
@@ -90,10 +90,18 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
 
     // 检查敌人的作战梯队来确定攻击目标
     if (state.enemy.formation === 'soldiers-first' && tempEnemySoldiers.length > 0) {
-      // 攻击敌人士兵
-      const firstSoldier = tempEnemySoldiers[0];
-      if (isSoldierAlive(firstSoldier)) {
-        // 添加对士兵的伤害记录
+      // 寻找存活的敌人士兵
+      let targetSoldier = tempEnemySoldiers[0];
+      let soldierIndex = 0;
+      while (soldierIndex < tempEnemySoldiers.length && !isSoldierAlive(targetSoldier)) {
+        soldierIndex++;
+        if (soldierIndex < tempEnemySoldiers.length) {
+          targetSoldier = tempEnemySoldiers[soldierIndex];
+        }
+      }
+
+      if (soldierIndex < tempEnemySoldiers.length && isSoldierAlive(targetSoldier)) {
+        // 攻击敌人士兵
         damageRecords.push({
           attackerId: state.player.id,
           attackerName: state.player.name,
@@ -101,13 +109,11 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
           targetName: state.enemy.name,
           damage: playerDamage,
           targetType: 'soldier',
-          soldierId: firstSoldier.id,
-          soldierName: firstSoldier.name
+          soldierId: targetSoldier.id,
+          soldierName: targetSoldier.name
         });
-
-
       } else {
-        // 士兵已死亡，攻击敌人角色
+        // 没有存活的士兵，攻击敌人角色
         damageRecords.push({
           attackerId: state.player.id,
           attackerName: state.player.name,
@@ -137,10 +143,18 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
 
         // 检查敌人的作战梯队来确定攻击目标
         if (state.enemy.formation === 'soldiers-first' && tempEnemySoldiers.length > 0) {
-          // 攻击敌人士兵
-          const firstSoldier = tempEnemySoldiers[0];
-          if (isSoldierAlive(firstSoldier)) {
-            // 添加对士兵的伤害记录
+          // 寻找存活的敌人士兵
+          let targetSoldier = tempEnemySoldiers[0];
+          let soldierIndex = 0;
+          while (soldierIndex < tempEnemySoldiers.length && !isSoldierAlive(targetSoldier)) {
+            soldierIndex++;
+            if (soldierIndex < tempEnemySoldiers.length) {
+              targetSoldier = tempEnemySoldiers[soldierIndex];
+            }
+          }
+
+          if (soldierIndex < tempEnemySoldiers.length && isSoldierAlive(targetSoldier)) {
+            // 攻击敌人士兵
             damageRecords.push({
               attackerId: soldier.id,
               attackerName: `${state.player.name} 的 ${soldier.name}`,
@@ -148,13 +162,11 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
               targetName: state.enemy.name,
               damage: soldierDamage,
               targetType: 'soldier',
-              soldierId: firstSoldier.id,
-              soldierName: firstSoldier.name
+              soldierId: targetSoldier.id,
+              soldierName: targetSoldier.name
             });
-
-
           } else {
-            // 士兵已死亡，攻击敌人角色
+            // 没有存活的士兵，攻击敌人角色
             damageRecords.push({
               attackerId: soldier.id,
               attackerName: `${state.player.name} 的 ${soldier.name}`,
@@ -186,10 +198,18 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
 
     // 检查玩家的作战梯队来确定攻击目标
     if (state.player.formation === 'soldiers-first' && tempPlayerSoldiers.length > 0) {
-      // 攻击玩家士兵
-      const firstSoldier = tempPlayerSoldiers[0];
-      if (isSoldierAlive(firstSoldier)) {
-        // 添加对士兵的伤害记录
+      // 寻找存活的玩家士兵
+      let targetSoldier = tempPlayerSoldiers[0];
+      let soldierIndex = 0;
+      while (soldierIndex < tempPlayerSoldiers.length && !isSoldierAlive(targetSoldier)) {
+        soldierIndex++;
+        if (soldierIndex < tempPlayerSoldiers.length) {
+          targetSoldier = tempPlayerSoldiers[soldierIndex];
+        }
+      }
+
+      if (soldierIndex < tempPlayerSoldiers.length && isSoldierAlive(targetSoldier)) {
+        // 攻击玩家士兵
         damageRecords.push({
           attackerId: state.enemy.id,
           attackerName: state.enemy.name,
@@ -197,13 +217,11 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
           targetName: state.player.name,
           damage: enemyDamage,
           targetType: 'soldier',
-          soldierId: firstSoldier.id,
-          soldierName: firstSoldier.name
+          soldierId: targetSoldier.id,
+          soldierName: targetSoldier.name
         });
-
-
       } else {
-        // 士兵已死亡，攻击玩家角色
+        // 没有存活的士兵，攻击玩家角色
         damageRecords.push({
           attackerId: state.enemy.id,
           attackerName: state.enemy.name,
@@ -233,10 +251,18 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
 
         // 检查玩家的作战梯队来确定攻击目标
         if (state.player.formation === 'soldiers-first' && tempPlayerSoldiers.length > 0) {
-          // 攻击玩家士兵
-          const firstSoldier = tempPlayerSoldiers[0];
-          if (isSoldierAlive(firstSoldier)) {
-            // 添加对士兵的伤害记录
+          // 寻找存活的玩家士兵
+          let targetSoldier = tempPlayerSoldiers[0];
+          let soldierIndex = 0;
+          while (soldierIndex < tempPlayerSoldiers.length && !isSoldierAlive(targetSoldier)) {
+            soldierIndex++;
+            if (soldierIndex < tempPlayerSoldiers.length) {
+              targetSoldier = tempPlayerSoldiers[soldierIndex];
+            }
+          }
+
+          if (soldierIndex < tempPlayerSoldiers.length && isSoldierAlive(targetSoldier)) {
+            // 攻击玩家士兵
             damageRecords.push({
               attackerId: soldier.id,
               attackerName: `${state.enemy.name} 的 ${soldier.name}`,
@@ -244,13 +270,11 @@ export function calculateBattleDamages(state: BattleState): DamageRecord[] {
               targetName: state.player.name,
               damage: soldierDamage,
               targetType: 'soldier',
-              soldierId: firstSoldier.id,
-              soldierName: firstSoldier.name
+              soldierId: targetSoldier.id,
+              soldierName: targetSoldier.name
             });
-
-
           } else {
-            // 士兵已死亡，攻击玩家角色
+            // 没有存活的士兵，攻击玩家角色
             damageRecords.push({
               attackerId: soldier.id,
               attackerName: `${state.enemy.name} 的 ${soldier.name}`,

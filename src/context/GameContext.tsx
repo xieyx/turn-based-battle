@@ -6,11 +6,11 @@ import {
   startBattlePhase,
   startResolutionPhase,
   nextRound,
-  selectItem as selectItemLogic,
-  enterBattle as enterBattleLogic,
-  attack as attackLogic,
+  selectItem,
+  enterBattle,
+  attack,
   processEnemyTurn,
-  resetBattle as resetBattleLogic,
+  resetBattle,
   decreasePreparationTimer,
   markPreparationActionTaken,
   autoExecuteBattlePhase,
@@ -65,16 +65,16 @@ const gameReducer = (state: BattleState, action: GameAction): BattleState => {
     case 'NEXT_ROUND':
       return nextRound(state);
     case 'USE_ITEM':
-      return selectItemLogic(state, action.payload);
+      return selectItem(state, action.payload);
     case 'ENTER_BATTLE':
-      return enterBattleLogic(state);
+      return enterBattle(state);
     case 'ATTACK':
-      return attackLogic(state, action.payload);
+      return attack(state, action.payload);
     case 'PROCESS_ENEMY_TURN':
       return processEnemyTurn(state);
     case 'RESET_BATTLE':
       const initialState = createInitialGameState();
-      return resetBattleLogic(initialState);
+      return resetBattle(initialState);
     case 'DECREASE_PREPARATION_TIMER':
       return decreasePreparationTimer(state);
     case 'MARK_PREPARATION_ACTION_TAKEN':

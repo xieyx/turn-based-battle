@@ -148,7 +148,8 @@ function applyDamageToSoldierTarget(
     return { updatedTarget: target, newLog };
   }
 
-  const updatedSoldier = applySoldierDamage(target.soldiers[soldierIndex], damage);
+  const originalSoldier = target.soldiers[soldierIndex];
+  const updatedSoldier = applySoldierDamage(originalSoldier, damage);
   const updatedTarget = {
     ...target,
     soldiers: target.soldiers.map((s, index) =>
@@ -156,9 +157,17 @@ function applyDamageToSoldierTarget(
     )
   };
 
+  // 计算损失的士兵数量
+  const lostSoldiers = originalSoldier.quantity - updatedSoldier.quantity;
+
+  let message = `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`;
+  if (lostSoldiers > 0) {
+    message += `，损失了 ${lostSoldiers} 个士兵`;
+  }
+
   const newLogEntry = {
     phase: 'resolution' as const,
-    message: `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`,
+    message,
     round: state.currentRound
   };
 
@@ -294,6 +303,8 @@ export function nextRound(state: BattleState): BattleState {
     ...state,
     currentRound: state.currentRound + 1,
     currentPhase: 'preparation',
+    preparationTimer: 30, // 重置计时器
+    preparationActionTaken: false, // 重置行动标记
     battleLog: [
       ...state.battleLog,
       {
@@ -375,17 +386,17 @@ export function selectItem(state: BattleState, itemId: string): BattleState {
  * @returns 更新后的战斗状态
  */
 export function executePendingItemUse(state: BattleState): BattleState {
-  if (state.currentPhase !== 'battle') {
-    throw new GameError(
-      GameErrorType.INVALID_PHASE,
-      '只能在战斗阶段执行道具使用'
-    );
-  }
-
   if (state.isGameOver) {
     throw new GameError(
       GameErrorType.BATTLE_ALREADY_ENDED,
       '战斗已经结束'
+    );
+  }
+
+  if (state.currentPhase !== 'battle') {
+    throw new GameError(
+      GameErrorType.INVALID_PHASE,
+      '只能在战斗阶段执行道具使用'
     );
   }
 
@@ -760,17 +771,17 @@ export function markPreparationActionTaken(state: BattleState): BattleState {
  * @returns 更新后的战斗状态
  */
 export function autoExecuteBattlePhase(state: BattleState): BattleState {
-  if (state.currentPhase !== 'battle') {
-    throw new GameError(
-      GameErrorType.INVALID_PHASE,
-      '只能在战斗阶段自动执行'
-    );
-  }
-
   if (state.isGameOver) {
     throw new GameError(
       GameErrorType.BATTLE_ALREADY_ENDED,
       '战斗已经结束'
+    );
+  }
+
+  if (state.currentPhase !== 'battle') {
+    throw new GameError(
+      GameErrorType.INVALID_PHASE,
+      '只能在战斗阶段自动执行'
     );
   }
 
@@ -995,6 +1006,8 @@ export function toggleFormation(state: BattleState): BattleState {
 export function resetBattle(initialState: BattleState): BattleState {
   return {
     ...initialState,
+    currentRound: 1,
+    currentPhase: 'preparation',
     battleLog: [
       {
         phase: 'preparation',
@@ -1002,6 +1015,12 @@ export function resetBattle(initialState: BattleState): BattleState {
         round: 1
       }
     ],
+    pendingActions: [],
+    isGameOver: false,
+    winner: undefined,
+    preparationTimer: 30,
+    preparationActionTaken: false,
+    pendingItemUse: undefined,
     calculatedDamages: []
   };
 }

@@ -104,7 +104,6 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             </div>
           )}
 
-          {/* 显示当前作战梯队 */}
           <div className="text-center text-lg font-semibold">
             作战梯队: {player.formation === 'soldiers-first' ? '士兵在前' : '玩家在前'}
           </div>
