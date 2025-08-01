@@ -178,6 +178,28 @@ function applyDamageToSoldierTarget(
 }
 
 /**
+ * 应用伤害记录到目标
+ * @param target 目标角色
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageRecordToTarget(
+  target: Character,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  if (damageRecord.targetType === 'character') {
+    return applyDamageToTarget(target, damageRecord.damage, damageRecord, newLog, state);
+  } else if (damageRecord.targetType === 'soldier' && damageRecord.soldierId) {
+    return applyDamageToSoldierTarget(target, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
+  }
+  return { updatedTarget: target, newLog };
+}
+
+/**
  * 开始结算阶段
  * @param state 战斗状态
  * @returns 更新后的战斗状态
@@ -190,52 +212,36 @@ export function startResolutionPhase(state: BattleState): BattleState {
     );
   }
 
-  // 在结算阶段应用伤害
-  let newState = { ...state };
+  // 创建角色副本以避免直接修改原状态
+  let playerCopy = { ...state.player };
+  let enemyCopy = { ...state.enemy };
   let newLog = [...state.battleLog];
 
-  // 创建角色和士兵的副本来跟踪状态变化
-  let playerCopy = { ...newState.player };
-  if (playerCopy.soldiers) {
-    playerCopy.soldiers = playerCopy.soldiers.map(s => ({ ...s }));
-  }
-
-  let enemyCopy = { ...newState.enemy };
-  if (enemyCopy.soldiers) {
-    enemyCopy.soldiers = enemyCopy.soldiers.map(s => ({ ...s }));
-  }
-
-  // 按顺序应用计算出的伤害（战斗阶段已经检查过攻击者和目标的存活状态）
+  // 按顺序应用计算出的伤害
   for (const damageRecord of state.calculatedDamages) {
+    // 确定目标角色
+    const isPlayerTarget = damageRecord.targetId === state.player.id;
+    const target = isPlayerTarget ? playerCopy : enemyCopy;
+
     // 应用伤害到目标
-    if (damageRecord.targetType === 'character') {
-      // 对角色造成伤害
-      if (damageRecord.targetId === newState.player.id) {
-        const result = applyDamageToTarget(playerCopy, damageRecord.damage, damageRecord, newLog, state);
-        playerCopy = result.updatedTarget;
-        newLog = result.newLog;
-      } else if (damageRecord.targetId === newState.enemy.id) {
-        const result = applyDamageToTarget(enemyCopy, damageRecord.damage, damageRecord, newLog, state);
-        enemyCopy = result.updatedTarget;
-        newLog = result.newLog;
-      }
-    } else if (damageRecord.targetType === 'soldier' && damageRecord.soldierId) {
-      // 对士兵造成伤害
-      if (damageRecord.targetId === newState.player.id) {
-        const result = applyDamageToSoldierTarget(playerCopy, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
-        playerCopy = result.updatedTarget;
-        newLog = result.newLog;
-      } else if (damageRecord.targetId === newState.enemy.id) {
-        const result = applyDamageToSoldierTarget(enemyCopy, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
-        enemyCopy = result.updatedTarget;
-        newLog = result.newLog;
-      }
+    const result = applyDamageRecordToTarget(target, damageRecord, newLog, state);
+
+    // 更新目标副本
+    if (isPlayerTarget) {
+      playerCopy = result.updatedTarget;
+    } else {
+      enemyCopy = result.updatedTarget;
     }
+    newLog = result.newLog;
   }
 
   // 更新状态
-  newState.player = playerCopy;
-  newState.enemy = enemyCopy;
+  const newState = {
+    ...state,
+    player: playerCopy,
+    enemy: enemyCopy,
+    battleLog: newLog
+  };
 
   // 检查战斗是否结束
   const isPlayerAlive = isCharacterOrSoldiersAlive(newState.player);
@@ -247,36 +253,23 @@ export function startResolutionPhase(state: BattleState): BattleState {
   if (!isPlayerAlive || !isEnemyAlive) {
     isGameOver = true;
     winner = isPlayerAlive ? 'player' : 'enemy';
-    newLog = [
-      ...newLog,
-      {
-        phase: 'resolution',
-        message: `战斗结束！${winner === 'player' ? '玩家' : '敌人'} 获胜！`,
-        round: state.currentRound
-      }
-    ];
-  }
-
-  // 如果游戏结束，直接返回状态，否则进入下一回合
-  if (isGameOver) {
-    return {
-      ...newState,
-      currentPhase: 'resolution',
-      pendingActions: [],
-      battleLog: newLog,
-      isGameOver,
-      winner
-    };
-  } else {
-    return nextRound({
-      ...newState,
-      currentPhase: 'resolution',
-      pendingActions: [],
-      battleLog: newLog,
-      isGameOver,
-      winner
+    newState.battleLog.push({
+      phase: 'resolution',
+      message: `战斗结束！${winner === 'player' ? '玩家' : '敌人'} 获胜！`,
+      round: state.currentRound
     });
   }
+
+  // 更新阶段状态（确保currentPhase类型正确）
+  const resolutionState: BattleState = {
+    ...newState,
+    currentPhase: 'resolution' as const, // 使用const断言确保类型正确
+    pendingActions: [],
+    isGameOver,
+    winner
+  };
+
+  return isGameOver ? resolutionState : nextRound(resolutionState);
 }
 
 /**

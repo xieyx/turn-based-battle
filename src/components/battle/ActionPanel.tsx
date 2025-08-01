@@ -25,11 +25,8 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     selectItem,
     enterBattle,
     startBattlePhase,
-    startResolutionPhase,
-    processEnemyTurn,
     decreasePreparationTimer,
     markPreparationActionTaken,
-    autoExecuteBattlePhase,
     autoProceedToNextRound,
     toggleFormation: toggleFormationAction
   } = useBattle();

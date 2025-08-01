@@ -20,8 +20,7 @@ export const useBattle = () => {
     markPreparationActionTaken,
     autoExecuteBattlePhase,
     autoProceedToNextRound,
-    toggleFormation,
-    dispatch
+    toggleFormation
   } = useGame();
 
   return {

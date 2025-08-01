@@ -67,7 +67,7 @@ describe('damageCalculation', () => {
     it('should apply damage to soldier and reduce HP', () => {
       const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, maxHp: 30, quantity: 3 }, 'soldier-1');
       // Manually set currentHp for testing purposes
-      const soldierWithHp = { ...soldier, currentHp: 30 };
+      soldier.currentHp = 30;
       const damage = 15;
 
       const updatedSoldier = applySoldierDamage(soldier, damage);
@@ -78,7 +78,7 @@ describe('damageCalculation', () => {
     it('should reduce soldier quantity when a soldier dies', () => {
       const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, maxHp: 30, quantity: 3 }, 'soldier-1');
       // Manually set currentHp for testing purposes
-      const soldierWithHp = { ...soldier, currentHp: 30 };
+      soldier.currentHp = 30;
       const damage = 40; // More than one soldier's HP
 
       const updatedSoldier = applySoldierDamage(soldier, damage);
@@ -89,7 +89,7 @@ describe('damageCalculation', () => {
     it('should handle damage that kills multiple soldiers', () => {
       const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, maxHp: 30, quantity: 5 }, 'soldier-1');
       // Manually set currentHp for testing purposes
-      const soldierWithHp = { ...soldier, currentHp: 30 };
+      soldier.currentHp = 30;
       const damage = 80; // Enough to kill 2 soldiers (60 HP) and damage the third
 
       const updatedSoldier = applySoldierDamage(soldier, damage);
@@ -100,7 +100,7 @@ describe('damageCalculation', () => {
     it('should handle damage that kills all soldiers', () => {
       const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, maxHp: 30, quantity: 2 }, 'soldier-1');
       // Manually set currentHp for testing purposes
-      const soldierWithHp = { ...soldier, currentHp: 30 };
+      soldier.currentHp = 30;
       const damage = 100; // More than all soldiers' HP
 
       const updatedSoldier = applySoldierDamage(soldier, damage);
@@ -111,10 +111,10 @@ describe('damageCalculation', () => {
     it('should handle damage when no soldiers are left', () => {
       const soldier = createSoldier({ ...DEFAULT_SOLDIER_CONFIG, maxHp: 30, quantity: 0 }, 'soldier-1');
       // Manually set currentHp for testing purposes
-      const soldierWithHp = { ...soldier, currentHp: 0 };
+      soldier.currentHp = 0;
       const damage = 10;
 
-      const updatedSoldier = applySoldierDamage(soldierWithHp, damage);
+      const updatedSoldier = applySoldierDamage(soldier, damage);
       expect(updatedSoldier.currentHp).toBe(0);
       expect(updatedSoldier.quantity).toBe(0);
     });
