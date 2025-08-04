@@ -9,7 +9,6 @@ import {
   selectItem,
   enterBattle,
   attack,
-  processEnemyTurn,
   resetBattle,
   decreasePreparationTimer,
   markPreparationActionTaken,
@@ -17,6 +16,7 @@ import {
   autoProceedToNextRound,
   toggleFormation
 } from '../utils/battleLogic';
+import { processEnemyTurn } from '../ai/enemyAI';
 import {
   createCharacter
 } from '../utils/character';

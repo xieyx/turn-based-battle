@@ -7,7 +7,6 @@ import {
   selectItem,
   executePendingItemUse,
   enterBattle,
-  processEnemyTurn,
   decreasePreparationTimer,
   markPreparationActionTaken,
   autoExecuteBattlePhase,
@@ -15,6 +14,7 @@ import {
   toggleFormation,
   resetBattle
 } from './battleLogic';
+import { processEnemyTurn } from '../ai/enemyAI';
 import { DEFAULT_PLAYER_CONFIG, DEFAULT_ENEMY_CONFIG, DEFAULT_ITEMS } from '../constants/gameConfig';
 import { createCharacter } from './character';
 
