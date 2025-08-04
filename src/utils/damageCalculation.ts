@@ -47,7 +47,7 @@ export function applySoldierDamage(
   const updatedSoldier = { ...soldier };
 
   // 伤害未超出当前士兵血量
-  if (damage <= updatedSoldier.currentHp) {
+  if (damage < updatedSoldier.currentHp) {
     updatedSoldier.currentHp -= damage;
   }
   // 伤害超出当前士兵血量
