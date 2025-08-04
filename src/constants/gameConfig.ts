@@ -8,7 +8,21 @@ export const DEFAULT_PLAYER_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
   attack: 20,
   defense: 5,
   type: 'player',
-  formation: 'player-first' // 默认玩家在前
+  battleFormation: {
+    frontline: [
+      { slot1: 'player', slot2: 'soldier', slot3: 'empty' }
+    ],
+    backline1: [
+      { slot1: 'soldier', slot2: 'empty', slot3: 'empty' }
+    ],
+    backline2: [
+      { slot1: 'empty', slot2: 'empty', slot3: 'empty' }
+    ],
+    backline3: [
+      { slot1: 'empty', slot2: 'empty', slot3: 'empty' }
+    ],
+    reserve: ['soldier', 'soldier']
+  }
 };
 
 export const DEFAULT_ENEMY_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
@@ -17,7 +31,21 @@ export const DEFAULT_ENEMY_CONFIG: Omit<Character, 'id' | 'currentHp'> = {
   attack: 15,
   defense: 3,
   type: 'enemy',
-  formation: 'soldiers-first' // 默认士兵在前
+  battleFormation: {
+    frontline: [
+      { slot1: 'soldier', slot2: 'empty', slot3: 'empty' }
+    ],
+    backline1: [
+      { slot1: 'empty', slot2: 'empty', slot3: 'empty' }
+    ],
+    backline2: [
+      { slot1: 'empty', slot2: 'empty', slot3: 'empty' }
+    ],
+    backline3: [
+      { slot1: 'empty', slot2: 'empty', slot3: 'empty' }
+    ],
+    reserve: ['soldier', 'soldier', 'soldier']
+  }
 };
 
 // 默认士兵配置

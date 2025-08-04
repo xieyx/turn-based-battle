@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, type ReactNode } from 'react';
 import type { BattleState } from '../types/battle';
+import type { BattleFormation } from '../types/character';
 import {
   initializeBattle,
   startPreparationPhase,
@@ -14,7 +15,7 @@ import {
   markPreparationActionTaken,
   autoExecuteBattlePhase,
   autoProceedToNextRound,
-  toggleFormation
+  updateBattleFormation
 } from '../utils/battleLogic';
 import { processEnemyTurn } from '../ai/enemyAI';
 import {
@@ -51,7 +52,7 @@ type GameAction =
   | { type: 'MARK_PREPARATION_ACTION_TAKEN' }
   | { type: 'AUTO_EXECUTE_BATTLE_PHASE' }
   | { type: 'AUTO_PROCEED_TO_NEXT_ROUND' }
-  | { type: 'TOGGLE_FORMATION' };
+  | { type: 'UPDATE_BATTLE_FORMATION'; payload: BattleFormation };
 
 // Reducer函数
 const gameReducer = (state: BattleState, action: GameAction): BattleState => {
@@ -83,8 +84,8 @@ const gameReducer = (state: BattleState, action: GameAction): BattleState => {
       return autoExecuteBattlePhase(state);
     case 'AUTO_PROCEED_TO_NEXT_ROUND':
       return autoProceedToNextRound(state);
-    case 'TOGGLE_FORMATION':
-      return toggleFormation(state);
+    case 'UPDATE_BATTLE_FORMATION':
+      return updateBattleFormation(state, action.payload);
     default:
       return state;
   }
@@ -107,7 +108,7 @@ interface GameContextType {
   markPreparationActionTaken: () => void;
   autoExecuteBattlePhase: () => void;
   autoProceedToNextRound: () => void;
-  toggleFormation: () => void;
+  updateBattleFormation: (newFormation: BattleFormation) => void;
 }
 
 // 创建Context
@@ -170,8 +171,8 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'AUTO_PROCEED_TO_NEXT_ROUND' });
   };
 
-  const toggleFormation = () => {
-    dispatch({ type: 'TOGGLE_FORMATION' });
+  const updateBattleFormation = (newFormation: BattleFormation) => {
+    dispatch({ type: 'UPDATE_BATTLE_FORMATION', payload: newFormation });
   };
 
   const value = {
@@ -190,7 +191,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     markPreparationActionTaken,
     autoExecuteBattlePhase,
     autoProceedToNextRound,
-    toggleFormation
+    updateBattleFormation
   };
 
   return (

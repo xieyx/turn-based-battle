@@ -1,5 +1,5 @@
 import type { BattleState, BattleAction, DamageRecord, BattleLogEntry } from '../types/battle';
-import type { Character, Soldier } from '../types/character';
+import type { Character, Soldier, BattleFormation } from '../types/character';
 import type { Item } from '../types/item';
 import { GameError, GameErrorType } from '../types/game';
 import { calculateBattleDamages, applyDamage, applySoldierDamage } from './damageCalculation';
@@ -421,7 +421,7 @@ export function executePendingItemUse(state: BattleState): BattleState {
   }
 
   // 根据作战梯队确定道具作用对象
-  if (state.player.formation === 'soldiers-first' && state.player.soldiers && state.player.soldiers.length > 0) {
+  if (state.player.soldiers && state.player.soldiers.length > 0) {
     // 如果玩家士兵在前，道具作用到士兵上
     // 简化处理：作用到第一个士兵
     const firstSoldier = state.player.soldiers[0];
@@ -871,12 +871,14 @@ export function autoProceedToNextRound(state: BattleState): BattleState {
   };
 }
 
+
 /**
- * 切换作战梯队
+ * 更新战斗梯队配置
  * @param state 战斗状态
+ * @param newFormation 新的战斗梯队配置
  * @returns 更新后的战斗状态
  */
-export function toggleFormation(state: BattleState): BattleState {
+export function updateBattleFormation(state: BattleState, newFormation: BattleFormation): BattleState {
   if (state.isGameOver) {
     throw new GameError(
       GameErrorType.BATTLE_ALREADY_ENDED,
@@ -885,7 +887,7 @@ export function toggleFormation(state: BattleState): BattleState {
   }
 
   const updatedPlayer = { ...state.player };
-  updatedPlayer.formation = updatedPlayer.formation === 'soldiers-first' ? 'player-first' : 'soldiers-first';
+  updatedPlayer.battleFormation = newFormation;
 
   return {
     ...state,
@@ -894,7 +896,7 @@ export function toggleFormation(state: BattleState): BattleState {
       ...state.battleLog,
       {
         phase: 'preparation',
-        message: `切换作战梯队为: ${updatedPlayer.formation === 'soldiers-first' ? '士兵在前' : '玩家在前'}`,
+        message: `更新战斗梯队配置`,
         round: state.currentRound
       }
     ]

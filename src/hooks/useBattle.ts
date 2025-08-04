@@ -1,4 +1,5 @@
 import { useGame } from '../context/GameContext';
+import type { BattleFormation } from '../types/character';
 
 /**
  * 战斗相关的Hook
@@ -20,7 +21,7 @@ export const useBattle = () => {
     markPreparationActionTaken,
     autoExecuteBattlePhase,
     autoProceedToNextRound,
-    toggleFormation
+    updateBattleFormation
   } = useGame();
 
   return {
@@ -53,6 +54,6 @@ export const useBattle = () => {
     autoProceedToNextRound,
 
     // 作战梯队相关方法
-    toggleFormation
+    updateBattleFormation
   };
 };

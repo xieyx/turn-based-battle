@@ -1,6 +1,7 @@
 export {
   createCharacter,
   createSoldier,
+  createDefaultBattleFormation,
   updateCharacterHp,
   updateSoldierHp,
   isCharacterAlive,
@@ -33,7 +34,7 @@ export {
   enterBattle,
   attack,
   resetBattle,
-  toggleFormation,
+  updateBattleFormation,
   autoExecuteBattlePhase,
   autoProceedToNextRound
 } from './battleLogic';
