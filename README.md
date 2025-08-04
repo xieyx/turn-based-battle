@@ -102,6 +102,7 @@ graph TD
    - 玩家有30秒时间选择"使用道具"或"进入战斗"
    - 敌人自动选择"进入战斗"
    - 玩家可以切换作战梯队（士兵在前/玩家在前）
+   - 玩家可以配置5个梯队，前4个梯队最多容纳3个作战单位，第5个梯队（预备队）不限制数量但不参与战斗
 
 2. **战斗阶段**：
    - 如果玩家在准备阶段选择了使用道具，则在战斗阶段道具效果生效，玩家不进行攻击
@@ -131,7 +132,7 @@ graph TD
 
 3. **玩家操作**：
    ```typescript
-   const { selectItem, enterBattle, toggleFormation } = useBattle();
+   const { selectItem, enterBattle, updateBattleFormation } = useBattle();
    ```
 
 4. **自动执行**：

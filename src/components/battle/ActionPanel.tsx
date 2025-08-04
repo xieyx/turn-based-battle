@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { BattlePhase } from '../../types/battle';
 import type { Item } from '../../types/item';
+import type { BattleFormation, FormationPosition } from '../../types/character';
 import { useBattle } from '../../hooks/useBattle';
 import { useItems } from '../../hooks/useItems';
 import { useCharacter } from '../../hooks/useCharacter';
@@ -28,7 +29,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     decreasePreparationTimer,
     markPreparationActionTaken,
     autoProceedToNextRound,
-    toggleFormation: toggleFormationAction
+    updateBattleFormation
   } = useBattle();
 
   const { canUseItem } = useItems();
@@ -89,6 +90,96 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
     startBattlePhase();
   };
 
+  // 处理更新战斗梯队
+  const handleUpdateBattleFormation = (newFormation: BattleFormation) => {
+    updateBattleFormation(newFormation);
+    markPreparationActionTaken();
+  };
+
+  // 渲染梯队配置UI
+  const renderFormationUI = () => {
+    if (!player.battleFormation) return null;
+
+    const formation = player.battleFormation;
+
+    // 更新梯队配置的辅助函数
+    const updateFormationPosition = (
+      tier: keyof BattleFormation,
+      positionIndex: number,
+      slot: 'slot1' | 'slot2' | 'slot3',
+      value: 'empty' | 'player' | 'soldier'
+    ) => {
+      const newFormation = { ...formation };
+
+      if (tier !== 'reserve') {
+        const tierArray = [...newFormation[tier]];
+        const position = { ...tierArray[positionIndex] };
+        position[slot] = value;
+        tierArray[positionIndex] = position;
+        newFormation[tier] = tierArray;
+      }
+
+      handleUpdateBattleFormation(newFormation);
+    };
+
+    // 渲染单个梯队
+    const renderTier = (
+      tier: keyof BattleFormation,
+      tierName: string,
+      positions: FormationPosition[]
+    ) => (
+      <div key={tier} className="mb-4">
+        <h3 className="text-lg font-semibold mb-2">{tierName}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {positions.map((position, positionIndex) => (
+            <div key={positionIndex} className="bg-gray-700 p-2 rounded">
+              <div className="flex justify-between items-center mb-1">
+                <span>位置 {positionIndex + 1}</span>
+              </div>
+              <div className="flex gap-1">
+                {(['slot1', 'slot2', 'slot3'] as const).map((slot) => (
+                  <select
+                    key={slot}
+                    value={position[slot]}
+                    onChange={(e) => updateFormationPosition(
+                      tier,
+                      positionIndex,
+                      slot,
+                      e.target.value as 'empty' | 'player' | 'soldier'
+                    )}
+                    className="flex-1 p-1 bg-gray-600 rounded text-sm"
+                  >
+                    <option value="empty">空</option>
+                    <option value="player">玩家</option>
+                    <option value="soldier">士兵</option>
+                  </select>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="mt-4 p-4 bg-gray-700 rounded-lg">
+        <h2 className="text-xl font-bold mb-4">战斗梯队配置</h2>
+
+        {renderTier('frontline', '第一梯队', formation.frontline)}
+        {renderTier('backline1', '第二梯队', formation.backline1)}
+        {renderTier('backline2', '第三梯队', formation.backline2)}
+        {renderTier('backline3', '第四梯队', formation.backline3)}
+
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold mb-2">第五梯队（预备队）</h3>
+          <div className="text-sm text-gray-300">
+            不参与战斗，不限制数量
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mb-6 p-4 bg-gray-800 rounded-lg">
       <h2 className="text-xl font-bold mb-4">操作面板</h2>
@@ -101,9 +192,6 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             </div>
           )}
 
-          <div className="text-center text-lg font-semibold">
-            作战梯队: {player.formation === 'soldiers-first' ? '士兵在前' : '玩家在前'}
-          </div>
 
           <div className="flex flex-wrap gap-4">
             {healingPotion && canUseItem(healingPotion) ? (
@@ -128,14 +216,9 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
           >
             进入战斗
           </button>
-
-            <button
-              onClick={toggleFormationAction}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-            >
-              切换作战梯队
-            </button>
           </div>
+
+          {renderFormationUI()}
         </div>
       )}
 

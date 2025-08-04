@@ -147,7 +147,7 @@ function processAttack(
 }
 
 /**
- * 寻找攻击目标
+ * 寻找攻击目标（支持新的梯队系统）
  * @param defender 防御者角色
  * @param defenderSoldiers 防御方士兵数组
  * @returns 攻击目标信息
@@ -156,12 +156,39 @@ function findAttackTarget(
   defender: Character,
   defenderSoldiers: Soldier[]
 ): { targetType: 'character' | 'soldier'; soldier?: Soldier } {
-  if (defender.formation === 'soldiers-first' && defenderSoldiers.length > 0) {
-    const aliveSoldier = defenderSoldiers.find(s => isSoldierAlive(s));
-    if (aliveSoldier) {
-      return { targetType: 'soldier', soldier: aliveSoldier };
+  // 使用新的梯队系统
+  if (defender.battleFormation) {
+    // 检查前4个梯队是否有可用的士兵
+    const allTiers = [
+      defender.battleFormation.frontline,
+      defender.battleFormation.backline1,
+      defender.battleFormation.backline2,
+      defender.battleFormation.backline3
+    ];
+
+    for (const tier of allTiers) {
+      for (const position of tier) {
+        // 检查每个槽位
+        for (const slot of [position.slot1, position.slot2, position.slot3]) {
+          if (slot === 'soldier') {
+            // 查找可用的士兵
+            const aliveSoldier = defenderSoldiers.find(s => isSoldierAlive(s));
+            if (aliveSoldier) {
+              return { targetType: 'soldier', soldier: aliveSoldier };
+            }
+          } else if (slot === 'player') {
+            // 如果角色在梯队中，直接攻击角色
+            return { targetType: 'character' };
+          }
+        }
+      }
     }
+
+    // 如果前4个梯队都没有找到目标，攻击角色本身
+    return { targetType: 'character' };
   }
+
+  // 如果没有新的梯队系统，默认攻击角色
   return { targetType: 'character' };
 }
 
