@@ -1,10 +1,11 @@
-import type { BattleState, BattleAction, BattleLogEntry } from '../types/battle';
+import type { BattleState, BattleAction, DamageRecord, BattleLogEntry } from '../types/battle';
 import type { Character, Soldier } from '../types/character';
 import type { Item } from '../types/item';
 import { GameError, GameErrorType } from '../types/game';
-import { calculateDamage, calculateSoldierDamage, applyDamage, applySoldierDamage } from './damageCalculation';
+import { calculateBattleDamages, applyDamage, applySoldierDamage } from './damageCalculation';
 import { useHealingPotion, canUseItem } from './items';
 import { isCharacterAlive, isSoldierAlive, isCharacterOrSoldiersAlive } from './character';
+import { executeEnemyAttack } from '../ai/enemyAI';
 
 /**
  * 初始化战斗
@@ -28,7 +29,8 @@ export function initializeBattle(
     pendingActions: [],
     isGameOver: false,
     preparationTimer: 30, // 30秒倒计时
-    preparationActionTaken: false
+    preparationActionTaken: false,
+    calculatedDamages: []
   };
 }
 
@@ -74,7 +76,8 @@ export function startBattlePhase(state: BattleState): BattleState {
     );
   }
 
-  return {
+  // 开始战斗阶段并立即自动执行战斗
+  const battleState: BattleState = {
     ...state,
     currentPhase: 'battle',
     battleLog: [
@@ -86,6 +89,115 @@ export function startBattlePhase(state: BattleState): BattleState {
       }
     ]
   };
+
+  // 自动执行战斗并进入结算阶段
+  return autoExecuteBattlePhase(battleState);
+}
+
+/**
+ * 应用伤害到目标
+ * @param target 目标角色或士兵
+ * @param damage 伤害值
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageToTarget(
+  target: Character,
+  damage: number,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  const updatedTarget = applyDamage(target, damage);
+  const newLogEntry = {
+    phase: 'resolution' as const,
+    message: `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}造成了 ${damageRecord.damage} 点伤害`,
+    round: state.currentRound
+  };
+  return {
+    updatedTarget,
+    newLog: [...newLog, newLogEntry]
+  };
+}
+
+/**
+ * 应用伤害到士兵目标
+ * @param target 目标角色
+ * @param soldierId 士兵ID
+ * @param damage 伤害值
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageToSoldierTarget(
+  target: Character,
+  soldierId: string,
+  damage: number,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  if (!target.soldiers) {
+    return { updatedTarget: target, newLog };
+  }
+
+  const soldierIndex = target.soldiers.findIndex(s => s.id === soldierId);
+  if (soldierIndex === -1) {
+    return { updatedTarget: target, newLog };
+  }
+
+  const originalSoldier = target.soldiers[soldierIndex];
+  const updatedSoldier = applySoldierDamage(originalSoldier, damage);
+  const updatedTarget = {
+    ...target,
+    soldiers: target.soldiers.map((s, index) =>
+      index === soldierIndex ? updatedSoldier : s
+    )
+  };
+
+  // 计算损失的士兵数量
+  const lostSoldiers = originalSoldier.quantity - updatedSoldier.quantity;
+
+  let message = `${damageRecord.attackerName} 对${target.id === state.player.id ? '玩家' : '敌人'}的 ${damageRecord.soldierName} 造成了 ${damageRecord.damage} 点伤害`;
+  if (lostSoldiers > 0) {
+    message += `，损失了 ${lostSoldiers} 个士兵`;
+  }
+
+  const newLogEntry = {
+    phase: 'resolution' as const,
+    message,
+    round: state.currentRound
+  };
+
+  return {
+    updatedTarget,
+    newLog: [...newLog, newLogEntry]
+  };
+}
+
+/**
+ * 应用伤害记录到目标
+ * @param target 目标角色
+ * @param damageRecord 伤害记录
+ * @param newLog 日志数组
+ * @param state 战斗状态
+ * @returns 更新后的目标和日志
+ */
+function applyDamageRecordToTarget(
+  target: Character,
+  damageRecord: DamageRecord,
+  newLog: BattleLogEntry[],
+  state: BattleState
+): { updatedTarget: Character; newLog: BattleLogEntry[] } {
+  if (damageRecord.targetType === 'character') {
+    return applyDamageToTarget(target, damageRecord.damage, damageRecord, newLog, state);
+  } else if (damageRecord.targetType === 'soldier' && damageRecord.soldierId) {
+    return applyDamageToSoldierTarget(target, damageRecord.soldierId, damageRecord.damage, damageRecord, newLog, state);
+  }
+  return { updatedTarget: target, newLog };
 }
 
 /**
@@ -101,49 +213,36 @@ export function startResolutionPhase(state: BattleState): BattleState {
     );
   }
 
-  // 应用所有待处理的行动
-  let newState = { ...state };
+  // 创建角色副本以避免直接修改原状态
+  let playerCopy = { ...state.player };
+  let enemyCopy = { ...state.enemy };
   let newLog = [...state.battleLog];
 
-  // 为每个攻击者（玩家和敌人）处理攻击，士兵先攻击，然后角色攻击
-  const attackers = [state.player, state.enemy];
-  const defenders = [state.enemy, state.player];
+  // 按顺序应用计算出的伤害
+  for (const damageRecord of state.calculatedDamages) {
+    // 确定目标角色
+    const isPlayerTarget = damageRecord.targetId === state.player.id;
+    const target = isPlayerTarget ? playerCopy : enemyCopy;
 
-  // 记录士兵损失情况，用于最后统计
-  const soldierLosses: { [key: string]: { originalAttacker: Character, soldier: Soldier, lost: number } } = {};
+    // 应用伤害到目标
+    const result = applyDamageRecordToTarget(target, damageRecord, newLog, state);
 
-  for (let i = 0; i < attackers.length; i++) {
-    const attacker = attackers[i];
-    const defender = defenders[i];
-
-    if (isCharacterAlive(attacker)) {
-      // 检查攻击者是否有存活的士兵
-      let attackingSoldiers: Soldier[] = [];
-      if (attacker.soldiers && attacker.soldiers.length > 0) {
-        attackingSoldiers = attacker.soldiers.filter(soldier => isSoldierAlive(soldier));
-      }
-
-      // 士兵攻击（如果有的话）
-      for (const soldier of attackingSoldiers) {
-        processAttack(attacker, soldier, defender, newState, newLog, state.currentRound, soldierLosses);
-      }
-
-      // 角色本身攻击
-      processAttack(attacker, attacker, defender, newState, newLog, state.currentRound, soldierLosses);
+    // 更新目标副本
+    if (isPlayerTarget) {
+      playerCopy = result.updatedTarget;
+    } else {
+      enemyCopy = result.updatedTarget;
     }
+    newLog = result.newLog;
   }
 
-  // 在回合最后统计损失的士兵
-  for (const key in soldierLosses) {
-    const loss = soldierLosses[key];
-    if (loss.lost > 0) {
-      newLog.push({
-        phase: 'resolution',
-        message: `${loss.originalAttacker.name} 的 ${loss.soldier.name} 损失了 ${loss.lost} 名士兵`,
-        round: state.currentRound
-      });
-    }
-  }
+  // 更新状态
+  const newState = {
+    ...state,
+    player: playerCopy,
+    enemy: enemyCopy,
+    battleLog: newLog
+  };
 
   // 检查战斗是否结束
   const isPlayerAlive = isCharacterOrSoldiersAlive(newState.player);
@@ -155,163 +254,23 @@ export function startResolutionPhase(state: BattleState): BattleState {
   if (!isPlayerAlive || !isEnemyAlive) {
     isGameOver = true;
     winner = isPlayerAlive ? 'player' : 'enemy';
-    newLog = [
-      ...newLog,
-      {
-        phase: 'resolution',
-        message: `战斗结束！${winner === 'player' ? '玩家' : '敌人'} 获胜！`,
-        round: state.currentRound
-      }
-    ];
+    newState.battleLog.push({
+      phase: 'resolution',
+      message: `战斗结束！${winner === 'player' ? '玩家' : '敌人'} 获胜！`,
+      round: state.currentRound
+    });
   }
 
-  return {
+  // 更新阶段状态（确保currentPhase类型正确）
+  const resolutionState: BattleState = {
     ...newState,
-    currentPhase: 'resolution',
+    currentPhase: 'resolution' as const, // 使用const断言确保类型正确
     pendingActions: [],
-    battleLog: newLog,
     isGameOver,
     winner
   };
-}
 
-/**
- * 处理单次攻击
- * @param originalAttacker 原始攻击者（角色）
- * @param attacker 实际攻击者（角色或士兵）
- * @param defender 防御者
- * @param newState 当前状态
- * @param newLog 日志数组
- * @param round 当前回合数
- * @param soldierLosses 士兵损失记录
- */
-function processAttack(
-  originalAttacker: Character,
-  attacker: Character | Soldier,
-  defender: Character,
-  newState: BattleState,
-  newLog: BattleLogEntry[],
-  round: number,
-  soldierLosses: { [key: string]: { originalAttacker: Character, soldier: Soldier, lost: number } }
-): void {
-  // 确定实际的攻击者名称
-  const actualAttackerName = 'name' in attacker && attacker.name !== originalAttacker.name
-    ? `${originalAttacker.name} 的 ${attacker.name}`
-    : originalAttacker.name;
-
-  // 检查防御者是否有士兵在前
-  const defenderHasSoldiersFirst =
-    (defender.id === newState.player.id && defender.formation === 'soldiers-first' && defender.soldiers && defender.soldiers.length > 0) ||
-    (defender.id === newState.enemy.id && defender.formation === 'soldiers-first' && defender.soldiers && defender.soldiers.length > 0);
-
-  // 检查是否还有存活的士兵
-  let hasAliveSoldiers = false;
-  if (defenderHasSoldiersFirst) {
-    const defenderSoldiers = defender.id === newState.player.id ? newState.player.soldiers : newState.enemy.soldiers;
-    if (defenderSoldiers && defenderSoldiers.length > 0) {
-      hasAliveSoldiers = defenderSoldiers.some(soldier => isSoldierAlive(soldier));
-    }
-  }
-
-  if (defenderHasSoldiersFirst && hasAliveSoldiers) {
-    // 如果防御者有士兵在前且还有存活的士兵，攻击士兵
-    const defenderSoldiers = defender.id === newState.player.id ? newState.player.soldiers : newState.enemy.soldiers;
-    if (defenderSoldiers && defenderSoldiers.length > 0) {
-      // 找到第一个存活的士兵
-      const soldier = defenderSoldiers.find(s => isSoldierAlive(s));
-      if (soldier) {
-        const damage = 'attack' in attacker ? calculateSoldierDamage(attacker as Character, soldier) : calculateDamage(attacker as Character, soldier as unknown as Character);
-        const updatedSoldier = applySoldierDamage(soldier, damage);
-
-        // 计算实际减少的士兵数量
-        const soldiersLost = soldier.quantity - updatedSoldier.quantity;
-
-        // 更新士兵状态
-        if (defender.id === newState.player.id) {
-          if (newState.player.soldiers) {
-            const soldierIndex = newState.player.soldiers.findIndex(s => s.id === soldier.id);
-            if (soldierIndex !== -1) {
-              newState.player.soldiers[soldierIndex] = updatedSoldier;
-            }
-          }
-        } else {
-          if (newState.enemy.soldiers) {
-            const soldierIndex = newState.enemy.soldiers.findIndex(s => s.id === soldier.id);
-            if (soldierIndex !== -1) {
-              newState.enemy.soldiers[soldierIndex] = updatedSoldier;
-            }
-          }
-        }
-
-        // 记录士兵损失情况，用于最后统计
-        if (soldiersLost > 0) {
-          const key = `${originalAttacker.id}-${soldier.id}`;
-          if (soldierLosses[key]) {
-            soldierLosses[key].lost += soldiersLost;
-          } else {
-            soldierLosses[key] = {
-              originalAttacker,
-              soldier,
-              lost: soldiersLost
-            };
-          }
-
-          newLog.push({
-            phase: 'resolution',
-            message: `${actualAttackerName} 对 ${defender.name} 的 ${soldier.name} 造成了 ${damage} 点伤害`,
-            round: round
-          });
-        } else {
-          newLog.push({
-            phase: 'resolution',
-            message: `${actualAttackerName} 对 ${defender.name} 的 ${soldier.name} 造成了 ${damage} 点伤害`,
-            round: round
-          });
-        }
-
-        // 如果士兵死亡，穿透伤害到角色本身
-        if (updatedSoldier.currentHp <= 0 && updatedSoldier.quantity <= 0) {
-          // 计算穿透到角色的伤害
-          // 穿透伤害 = 原始伤害 - 士兵当前生命值（这是士兵死亡前能吸收的伤害）
-          const damageAbsorbedBySoldier = soldier.currentHp; // 士兵死亡前的生命值就是它能吸收的伤害
-          const remainingDamage = damage - damageAbsorbedBySoldier;
-          if (remainingDamage > 0 && isCharacterAlive(defender)) {
-            const updatedDefender = applyDamage(defender, remainingDamage);
-
-            // 更新角色状态
-            if (updatedDefender.id === newState.player.id) {
-              newState.player = updatedDefender;
-            } else {
-              newState.enemy = updatedDefender;
-            }
-
-            newLog.push({
-              phase: 'resolution',
-              message: `${actualAttackerName} 的攻击穿透了 ${soldier.name}，对 ${defender.name} 造成了 ${remainingDamage} 点伤害`,
-              round: round
-            });
-          }
-        }
-      }
-    }
-  } else if (isCharacterAlive(defender)) {
-    // 如果没有士兵在前或者士兵都已死亡，攻击角色本身
-    const damage = 'attack' in attacker ? calculateDamage(attacker as Character, defender) : calculateDamage(attacker as Character, defender);
-    const updatedDefender = applyDamage(defender, damage);
-
-    // 更新角色状态
-    if (updatedDefender.id === newState.player.id) {
-      newState.player = updatedDefender;
-    } else {
-      newState.enemy = updatedDefender;
-    }
-
-    newLog.push({
-      phase: 'resolution',
-      message: `${actualAttackerName} 对 ${defender.name} 造成了 ${damage} 点伤害`,
-      round: round
-    });
-  }
+  return isGameOver ? resolutionState : nextRound(resolutionState);
 }
 
 /**
@@ -338,6 +297,8 @@ export function nextRound(state: BattleState): BattleState {
     ...state,
     currentRound: state.currentRound + 1,
     currentPhase: 'preparation',
+    preparationTimer: 30, // 重置计时器
+    preparationActionTaken: false, // 重置行动标记
     battleLog: [
       ...state.battleLog,
       {
@@ -419,17 +380,17 @@ export function selectItem(state: BattleState, itemId: string): BattleState {
  * @returns 更新后的战斗状态
  */
 export function executePendingItemUse(state: BattleState): BattleState {
-  if (state.currentPhase !== 'battle') {
-    throw new GameError(
-      GameErrorType.INVALID_PHASE,
-      '只能在战斗阶段执行道具使用'
-    );
-  }
-
   if (state.isGameOver) {
     throw new GameError(
       GameErrorType.BATTLE_ALREADY_ENDED,
       '战斗已经结束'
+    );
+  }
+
+  if (state.currentPhase !== 'battle') {
+    throw new GameError(
+      GameErrorType.INVALID_PHASE,
+      '只能在战斗阶段执行道具使用'
     );
   }
 
@@ -680,54 +641,6 @@ export function attack(state: BattleState, targetId: string): BattleState {
   };
 }
 
-/**
- * 处理敌人回合
- * @param state 战斗状态
- * @returns 更新后的战斗状态
- */
-export function processEnemyTurn(state: BattleState): BattleState {
-  if (state.currentPhase !== 'preparation' && state.currentPhase !== 'battle') {
-    throw new GameError(
-      GameErrorType.INVALID_PHASE,
-      '敌人只能在准备阶段或战斗阶段行动'
-    );
-  }
-
-  if (state.isGameOver) {
-    throw new GameError(
-      GameErrorType.BATTLE_ALREADY_ENDED,
-      '战斗已经结束'
-    );
-  }
-
-  if (!isCharacterAlive(state.enemy)) {
-    throw new GameError(
-      GameErrorType.CHARACTER_DEAD,
-      '敌人已死亡'
-    );
-  }
-
-  let newState = { ...state };
-  let newLog = [...state.battleLog];
-
-  // 敌人在准备阶段自动选择进入战斗
-  if (state.currentPhase === 'preparation') {
-    newLog = [
-      ...newLog,
-      {
-        phase: 'preparation',
-        message: '敌人选择进入战斗',
-        round: state.currentRound
-      }
-    ];
-  }
-  // 敌人在战斗阶段的行动已由 autoExecuteBattlePhase 处理，这里不再重复添加
-
-  return {
-    ...newState,
-    battleLog: newLog
-  };
-}
 
 /**
  * 减少准备阶段计时器
@@ -805,17 +718,17 @@ export function markPreparationActionTaken(state: BattleState): BattleState {
  * @returns 更新后的战斗状态
  */
 export function autoExecuteBattlePhase(state: BattleState): BattleState {
-  if (state.currentPhase !== 'battle') {
-    throw new GameError(
-      GameErrorType.INVALID_PHASE,
-      '只能在战斗阶段自动执行'
-    );
-  }
-
   if (state.isGameOver) {
     throw new GameError(
       GameErrorType.BATTLE_ALREADY_ENDED,
       '战斗已经结束'
+    );
+  }
+
+  if (state.currentPhase !== 'battle') {
+    throw new GameError(
+      GameErrorType.INVALID_PHASE,
+      '只能在战斗阶段自动执行'
     );
   }
 
@@ -872,51 +785,60 @@ export function autoExecuteBattlePhase(state: BattleState): BattleState {
             round: state.currentRound
           }
         ];
+
+        // 添加士兵攻击到待处理行动中
+        const soldierPendingActions: BattleAction[] = [
+          ...newState.pendingActions,
+          {
+            attackerId: firstSoldier.id,
+            targetId: state.enemy.id
+          }
+        ];
+
+        newState.pendingActions = soldierPendingActions;
       }
     }
   }
 
-  // 敌人自动攻击玩家
-  // 敌人角色攻击
-  const enemyPendingActions: BattleAction[] = [
-    ...newState.pendingActions,
-    {
-      attackerId: state.enemy.id,
-      targetId: state.player.id
-    }
-  ];
+  // 执行敌人攻击逻辑
+  newState = executeEnemyAttack(newState);
+  newLog = newState.battleLog;
 
-  newState.pendingActions = enemyPendingActions;
-  newLog = [
-    ...newLog,
-    {
-      phase: 'battle',
-      message: `敌人自动攻击玩家`,
-      round: state.currentRound
-    }
-  ];
+  // 在战斗阶段计算伤害
+  const damageRecords = calculateBattleDamages(newState);
+  newState.calculatedDamages = damageRecords;
 
-  // 检查敌人是否有存活的士兵，如果有则士兵也攻击
-  if (state.enemy.soldiers && state.enemy.soldiers.length > 0) {
-    const aliveSoldiers = state.enemy.soldiers.filter(soldier => isSoldierAlive(soldier));
-    if (aliveSoldiers.length > 0) {
-      // 敌人士兵攻击
-      const firstSoldier = aliveSoldiers[0];
-      newLog = [
-        ...newLog,
-        {
-          phase: 'battle',
-          message: `敌人的 ${firstSoldier.name} 发动攻击`,
-          round: state.currentRound
-        }
-      ];
+  // 记录伤害计算结果
+  for (const damageRecord of damageRecords) {
+    if (damageRecord.damage > 0) {
+      if (damageRecord.targetType === 'character') {
+        const target = damageRecord.targetId === newState.player.id ? newState.player : newState.enemy;
+        newLog = [
+          ...newLog,
+          {
+            phase: 'battle',
+            message: `${target.name} 的角色将承受 ${damageRecord.damage} 点伤害，攻击者：${damageRecord.attackerName}`,
+            round: state.currentRound
+          }
+        ];
+      } else if (damageRecord.targetType === 'soldier') {
+        const target = damageRecord.targetId === newState.player.id ? newState.player : newState.enemy;
+        newLog = [
+          ...newLog,
+          {
+            phase: 'battle',
+            message: `${target.name} 的 ${damageRecord.soldierName} 将承受 ${damageRecord.damage} 点伤害，攻击者：${damageRecord.attackerName}`,
+            round: state.currentRound
+          }
+        ];
+      }
     }
   }
 
-  return {
+  return startResolutionPhase({
     ...newState,
     battleLog: newLog
-  };
+  });
 }
 
 /**
@@ -987,12 +909,21 @@ export function toggleFormation(state: BattleState): BattleState {
 export function resetBattle(initialState: BattleState): BattleState {
   return {
     ...initialState,
+    currentRound: 1,
+    currentPhase: 'preparation',
     battleLog: [
       {
         phase: 'preparation',
         message: '战斗重新开始',
         round: 1
       }
-    ]
+    ],
+    pendingActions: [],
+    isGameOver: false,
+    winner: undefined,
+    preparationTimer: 30,
+    preparationActionTaken: false,
+    pendingItemUse: undefined,
+    calculatedDamages: []
   };
 }

@@ -6,17 +6,17 @@ import {
   startBattlePhase,
   startResolutionPhase,
   nextRound,
-  selectItem as selectItemLogic,
-  enterBattle as enterBattleLogic,
-  attack as attackLogic,
-  processEnemyTurn,
-  resetBattle as resetBattleLogic,
+  selectItem,
+  enterBattle,
+  attack,
+  resetBattle,
   decreasePreparationTimer,
   markPreparationActionTaken,
   autoExecuteBattlePhase,
   autoProceedToNextRound,
   toggleFormation
 } from '../utils/battleLogic';
+import { processEnemyTurn } from '../ai/enemyAI';
 import {
   createCharacter
 } from '../utils/character';
@@ -65,16 +65,16 @@ const gameReducer = (state: BattleState, action: GameAction): BattleState => {
     case 'NEXT_ROUND':
       return nextRound(state);
     case 'USE_ITEM':
-      return selectItemLogic(state, action.payload);
+      return selectItem(state, action.payload);
     case 'ENTER_BATTLE':
-      return enterBattleLogic(state);
+      return enterBattle(state);
     case 'ATTACK':
-      return attackLogic(state, action.payload);
+      return attack(state, action.payload);
     case 'PROCESS_ENEMY_TURN':
       return processEnemyTurn(state);
     case 'RESET_BATTLE':
       const initialState = createInitialGameState();
-      return resetBattleLogic(initialState);
+      return resetBattle(initialState);
     case 'DECREASE_PREPARATION_TIMER':
       return decreasePreparationTimer(state);
     case 'MARK_PREPARATION_ACTION_TAKEN':
@@ -146,7 +146,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch({ type: 'ATTACK', payload: targetId });
   };
 
-  const processEnemyAction = () => {
+  const processEnemyTurn = () => {
     dispatch({ type: 'PROCESS_ENEMY_TURN' });
   };
 
@@ -184,7 +184,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useItem,
     enterBattle,
     attack,
-    processEnemyTurn: processEnemyAction,
+    processEnemyTurn,
     resetBattle,
     decreasePreparationTimer,
     markPreparationActionTaken,
