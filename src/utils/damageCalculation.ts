@@ -64,6 +64,8 @@ export function applySoldierDamage(
       const remainingDamage = excessDamage % updatedSoldier.maxHp;
       updatedSoldier.currentHp = updatedSoldier.maxHp - remainingDamage;
     } else {
+      // 当士兵全部阵亡时，确保数量为0且HP为0
+      updatedSoldier.quantity = 0;
       updatedSoldier.currentHp = 0;
     }
   }

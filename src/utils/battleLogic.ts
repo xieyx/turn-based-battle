@@ -421,8 +421,7 @@ export function executePendingItemUse(state: BattleState): BattleState {
   }
 
   // 根据作战梯队确定道具作用对象
-  if (state.player.formation === 'soldiers-first' && state.player.soldiers && state.player.soldiers.length > 0) {
-    // 如果玩家士兵在前，道具作用到士兵上
+  if (state.player.soldiers && state.player.soldiers.length > 0) {
     // 简化处理：作用到第一个士兵
     const firstSoldier = state.player.soldiers[0];
     if (isSoldierAlive(firstSoldier)) {
